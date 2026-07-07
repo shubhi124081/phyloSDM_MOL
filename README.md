@@ -70,7 +70,7 @@ phyloSDM_MOL/
 
 The data underlying this project (harmonized phylogeny, expert range maps, occurrence CSVs, and — depending on what's included — intermediate/output files) is archived on Zenodo:
 
-> **Zenodo DOI:** `⚠️ TODO — insert DOI here once supplied` (e.g. `10.5281/zenodo.XXXXXXX`)
+> **Zenodo DOI:** 10.5281/zenodo.21243412
 >
 > ```bash
 > # once you have the DOI, something like:
