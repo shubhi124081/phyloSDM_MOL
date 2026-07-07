@@ -50,7 +50,12 @@ TRAIN_SPLIT <- 0.70 # 70% train, 30% test
 
 # ---- Load cluster list ----
 load(file.path(dpath, "spList.Rdata")) # loads spList
-clusters <- names(spList)
+if (CLUSTER == "ALL") {
+    clusters <- names(spList)
+} else {
+    clusters <- CLUSTER
+}
+
 message(sprintf("Found %d clusters to process", length(clusters)))
 
 # Track failed clusters
