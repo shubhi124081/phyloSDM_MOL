@@ -1,0 +1,30 @@
+# Ignore everything
+*
+
+# Except the scripts directory
+!scripts/
+!scripts/**
+
+# And the top-level README and .gitignore itself
+!README.md
+!.gitignore
+
+
+# Top-level non-script files
+analysis/
+birds_SR.tif
+birds_SUM_RSR.tif
+checks/
+data/
+expert_ranges/
+figures/
+jobs/
+log/
+raw_data/
+res/
+trees/
+*.RData
+*.Rdata
+*.rds
+*.tif
+.DS_Store
