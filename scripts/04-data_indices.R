@@ -43,7 +43,6 @@ dpath <- file.path(root, "raw_data", DATASET)
 checks_dir <- file.path(root, "checks")
 dir.create(checks_dir, showWarnings = FALSE, recursive = TRUE)
 
-
 # ---- Configuration ----
 NREPS <- 5
 TRAIN_SPLIT <- 0.70 # 70% train, 30% test
