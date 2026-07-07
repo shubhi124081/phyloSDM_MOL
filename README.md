@@ -340,16 +340,3 @@ res/
 **A script silently uses HPC-only paths and fails with "file not found."** You almost certainly forgot to set `HPC=FALSE` — see [required edits, item 1](#1-the-hpc-environment-variable-defaults-the-wrong-way).
 
 ---
-
-## Open questions for the project author
-
-These need to be confirmed/filled in before this README is fully accurate:
-
-1. **Zenodo DOI** — pending.
-2. **Environmental raster provenance** — is the ~30 GB `~/env` directory (CHELSA bioclim, cloud cover, EVI, TRI, elevation) included in the Zenodo archive, or does a user need to download it separately from CHELSA/SRTM directly? If separate, exact source URLs/versions would help.
-3. **Does the Zenodo archive include `analysis/` outputs** (soft clips, fitted models, predictions), or only the raw inputs (`raw_data/`, `expert_ranges/`) needed to re-run the pipeline from scratch?
-4. **`data/` directory** — appears unused by every script in `scripts/`. Confirm whether it's vestigial or reserved for something not yet wired up.
-5. **Committed TMB binaries** (`scripts/05_lgcp_corrected.o`, `.so`, ~58 MB combined) — since these are Linux build artifacts that won't run cross-platform anyway, worth confirming whether they should stay in git or be removed/`.gitignore`d (they're rebuilt automatically by `TMB::compile()` when needed).
-6. **License** — no `LICENSE` file currently exists in the repo; add one if you want to specify reuse terms.
-
----
