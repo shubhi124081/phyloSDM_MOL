@@ -1,0 +1,35 @@
+# This is the data-wrangling config file 
+# 
+data: 
+  exp_root: v0 # root name of experiment
+  exp_id: sub1000 # for example: LGCP_test_1
+  cluster_name: ALL # NULL if running a species-leveel script, ALL for all o/w enter the cluster name
+  raw_data: amphibians # provide a raw dataset name with real data files
+  repno: 1 # which repno is this or ALL to run all reps
+  focal_sp: ALL # If no one species is picked as focal, insert "ALL" to run all species as a cluster or "run_all_sep" to run an individual job for each species
+  autocommit: FALSE # logical - whether or not to autocommit to git (TRUE) for yes, (FALSE) for no
+  nrep: 1 # number of reps
+  
+# Script information 
+script:
+  script_name: 22-vulnerability.R
+
+# Model specifications
+model_specs: 
+  model_type: "STAN" # type of model to be run
+  model_name: ["LGCP_background"] # list of all the models to be run under this experiment
+
+# HPC specs 
+hpc_specs: 
+  dsq: TRUE # DSQ or not 
+  MEM: '50G' # memory required for this experiment (per model)
+  TIME: '10:00:00' # time required on the hpc for this experiment (per model)
+  MAIL_TYPE: 'ALL' # notifications - recommend "ALL"
+  OUT: 'log/slurm-%j.out' # where to write out log file
+  NODES: 1 # number of nodes required for this experiment
+  NTASKS: 1 # number of tasks
+  CPUSPERTASK: 4 # number of cpus per task
+  MAIL_USER: 'shubhi.sharma@yale.edu' # user email
+  PARTITION: 'day' # day or week for mccleary
+  AUTO_SUBMIT: FALSE # logical - jobs submitted automatically (TRUE) or manually (FALSE)
+
