@@ -5,6 +5,10 @@
 !scripts/
 !scripts/**
 
+# ...but not compiled TMB artifacts within it (platform-specific, rebuilt via TMB::compile())
+scripts/*.o
+scripts/*.so
+
 # And the top-level README and .gitignore itself
 !README.md
 !.gitignore

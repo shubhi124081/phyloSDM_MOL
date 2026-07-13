@@ -161,6 +161,10 @@ On the "local" branch, every script sets:
 root <- "~/phyloSDM_MOL"
 ```
 
+This assumes you've cloned the repo to exactly `~/phyloSDM_MOL`. If you cloned it somewhere else, edit the `root <- "~/phyloSDM_MOL"` line in each of: `03-gen_data.R`, `03-soft_clips.R`, `04-data_indices.R`, `04-pkg_data.R`, `05-run_model.R`, `10-cond_pred.R`, `11-pkg_test.R`, `12-eval.R`, `13-continuous_pred.R`, `14-thresholding.R`, `15-binary_prediction.R`, `02-build_jobs.R`.
+
+⚠️ **Gotcha:** if a directory with an old/different hardcoded name (e.g. a stale prior checkout) already exists on your machine at that path, R will happily read/write there instead — silently, with no error, since the path *does* exist. Symptoms look like missing data (e.g. "soft clip files found for 0/N observations") rather than a file-not-found crash. If output looks wrong, double check `root` actually resolves to the repo you think it does.
+
 On the "HPC" branch, `root` and the environmental-raster path `epath` are hardcoded to the author's Yale scratch/PI space (`/vast/palmer/pi/jetz/ss4224/...`) — irrelevant off the Yale cluster, but relevant if you're a lab member reusing this on McCleary under a different account.
 
 ### 3. `00-harmonize.R` and `00-makeClusters.R` have no local branch at all
@@ -269,7 +273,7 @@ dsq --job-file jobs/job_array_<exp_id>_for_03-gen_data.txt --mem-per-cpu 50G -t 
 
 ## Quickstart: running one cluster end-to-end
 
-This assumes you've already: cloned the repo, extracted the Zenodo data into place, built and activated the conda environment, and made the [required edits](#before-you-run-anything-required-edits) above (in particular, either symlinked `~/clim_risk_phylosdm` → your clone, or edited `root` in each script).
+This assumes you've already: cloned the repo to `~/phyloSDM_MOL`, extracted the Zenodo data into place, and built and activated the conda environment. If you cloned to a different path, see [required edits, item 2](#2-hardcoded-root-paths) first.
 
 ```bash
 conda activate phylo-sdms_wf

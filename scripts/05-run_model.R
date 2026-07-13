@@ -15,7 +15,7 @@ if (HPC != "FALSE") {
     root <- "/vast/palmer/pi/jetz/ss4224/clim_risk_phylosdm"
     message("Running on HPC")
 } else {
-    root <- "~/clim_risk_phylosdm"
+    root <- "~/phyloSDM_MOL"
     message("Running locally")
 }
 
@@ -116,23 +116,10 @@ model_specs <- list(
 if (MODEL_TYPE == "STAN") {
     # ---- Stan Model ----
     message("Running Stan model...")
-    library(rstan)
-    options(mc.cores = model_specs$cores)
 
-    # Source stan model code
-    source(file.path(scripts_directory, "05-stan_model.R"))
-
-    # Get model code (model name without extension)
-    model_code_name <- MODEL_NAME
-    if (!exists(model_code_name)) {
-        stop(sprintf("Stan model '%s' not found in 05-stan_model.R", model_code_name))
-    }
-    code <- get(model_code_name)
-
-    # X is site-level (N sites x K), but TMB expects observation-level (N_obs x K)
+    # X is site-level (N sites x K), but Stan expects observation-level (N_obs x K)
     # Expand X using site indices
     X_obs <- as.matrix(model_data$X)[model_data$site, , drop = FALSE]
-
 
     # Scale the phylogenetic distance matrix
     D_phylo_max <- max(model_data$D_phylo)
@@ -141,42 +128,155 @@ if (MODEL_TYPE == "STAN") {
         message("  Scaled phylogenetic distance matrix by max value")
     }
 
-    # Prepare data for Stan (remove non-data elements)
-    standata <- model_data[c("N", "J", "K", "species", "X", "y", "D_phylo", "species")]
-    standata$N <- model_data$N_obs # Stan expects N = number of observations
-    standata$X <- X_obs
+    if (HPC != "FALSE") {
+        # ---- HPC: fit via rstan (unchanged) ----
+        library(rstan)
+        options(mc.cores = model_specs$cores)
 
-    # Add offset if available
-    if (!is.null(model_data$offset)) {
-        standata$offset <- model_data$offset
-        standata$use_offset <- 1L
-        message("  Using offset in model")
+        # Source stan model code
+        source(file.path(scripts_directory, "05-stan_model.R"))
+
+        # Get model code (model name without extension)
+        model_code_name <- MODEL_NAME
+        if (!exists(model_code_name)) {
+            stop(sprintf("Stan model '%s' not found in 05-stan_model.R", model_code_name))
+        }
+        code <- get(model_code_name)
+
+        # Prepare data for Stan (remove non-data elements)
+        standata <- model_data[c("N", "J", "K", "species", "X", "y", "D_phylo", "species")]
+        standata$N <- model_data$N_obs # Stan expects N = number of observations
+        standata$X <- X_obs
+
+        # Add offset if available
+        if (!is.null(model_data$offset)) {
+            standata$offset <- model_data$offset
+            standata$use_offset <- 1L
+            message("  Using offset in model")
+        } else {
+            standata$offset <- rep(0, model_data$N_obs)
+            standata$use_offset <- 0L
+            message("  No offset (disabled)")
+        }
+
+        # Fit model
+        fit <- rstan::stan(
+            model_code = code,
+            data = standata,
+            iter = model_specs$iter,
+            thin = model_specs$thin,
+            warmup = model_specs$warmup,
+            chains = model_specs$chains,
+            cores = model_specs$cores
+        )
+
+        # Package results
+        result <- list(
+            fit = fit,
+            model_type = "STAN",
+            model_name = MODEL_NAME,
+            cluster = CLUSTER,
+            repno = REPNO
+            # config = config
+        )
     } else {
-        standata$offset <- rep(0, model_data$N_obs)
-        standata$use_offset <- 0L
-        message("  No offset (disabled)")
+        # ---- Local (macOS): fit via cmdstanr ----
+        # rstan can't be used locally here: StanHeaders/RcppParallel's bundled TBB
+        # headers are incompatible with current Apple Clang (a deep upstream
+        # toolchain issue, unrelated to this project's code). cmdstanr compiles
+        # via CmdStan's own build system and sidesteps that entirely. See
+        # scripts/LGCP_background.stan (same model as 05-stan_model.R's
+        # LGCP_background, translated to current Stan array syntax + a renamed
+        # `log_offset` field, since `offset` is now a reserved word in Stan).
+        library(cmdstanr)
+        library(posterior)
+
+        stan_file <- file.path(scripts_directory, paste0(MODEL_NAME, ".stan"))
+        if (!file.exists(stan_file)) {
+            stop(sprintf("Stan model file not found: %s", stan_file))
+        }
+        # cmdstan_model() caches the compiled binary next to the .stan source and
+        # skips recompilation on subsequent calls unless the source changed.
+        mod <- cmdstanr::cmdstan_model(stan_file)
+
+        standata <- list(
+            N = model_data$N_obs,
+            J = model_data$J,
+            K = model_data$K,
+            species = as.integer(model_data$species),
+            X = X_obs,
+            y = as.integer(model_data$y),
+            D_phylo = model_data$D_phylo
+        )
+
+        # Add offset if available
+        if (!is.null(model_data$offset)) {
+            standata$log_offset <- model_data$offset
+            message("  Using offset in model")
+        } else {
+            standata$log_offset <- rep(0, model_data$N_obs)
+            message("  No offset (disabled)")
+        }
+
+        # Fit model
+        # NOTE: rstan's `iter` includes warmup; cmdstanr splits iter_warmup /
+        # iter_sampling (sampling-only), so iter_sampling = iter - warmup below
+        # reproduces the same total draw count as the HPC/rstan branch.
+        cmdstan_fit <- mod$sample(
+            data = standata,
+            iter_warmup = model_specs$warmup,
+            iter_sampling = model_specs$iter - model_specs$warmup,
+            thin = model_specs$thin,
+            chains = model_specs$chains,
+            parallel_chains = model_specs$cores
+        )
+
+        # Extract posterior draws into plain R arrays/vectors, matching the
+        # shape rstan::extract() used to produce ([S,J,K] for B; [S] for
+        # scalars) — cmdstanr's fit object wraps temp CSV files that won't
+        # survive being save()'d/load()'d in a later, separate script/session,
+        # so downstream scripts must consume result$posterior, not a live fit.
+        extract_param <- function(fit, par_name) {
+            # drop() removes the spurious trailing [S,1] dim posterior::draws_of()
+            # leaves on scalar (0-dimensional) Stan parameters, so alpha/rho/sigma_f
+            # come out as plain length-S vectors, matching rstan::extract()'s shape.
+            drop(posterior::draws_of(posterior::as_draws_rvars(fit$draws(par_name))[[par_name]]))
+        }
+        posterior_draws <- list(
+            B = extract_param(cmdstan_fit, "B"),
+            alpha = extract_param(cmdstan_fit, "alpha"),
+            rho = extract_param(cmdstan_fit, "rho"),
+            sigma_f = extract_param(cmdstan_fit, "sigma_f")
+        )
+
+        # Compact convergence diagnostics (nothing downstream currently checks
+        # these, but they're cheap and the raw fit object can't be kept around).
+        diag_summary <- cmdstan_fit$diagnostic_summary(quiet = TRUE)
+        param_summary <- cmdstan_fit$summary(variables = c("B", "alpha", "rho", "sigma_f"))
+        diagnostics <- list(
+            num_divergent = sum(diag_summary$num_divergent),
+            num_max_treedepth = sum(diag_summary$num_max_treedepth),
+            ebfmi = diag_summary$ebfmi,
+            max_rhat = max(param_summary$rhat, na.rm = TRUE),
+            min_ess_bulk = min(param_summary$ess_bulk, na.rm = TRUE)
+        )
+        if (diagnostics$num_divergent > 0) {
+            warning(sprintf("%d divergent transitions", diagnostics$num_divergent))
+        }
+        if (diagnostics$max_rhat > 1.01) {
+            warning(sprintf("Max Rhat = %.3f (chains may not have converged)", diagnostics$max_rhat))
+        }
+
+        # Package results
+        result <- list(
+            posterior = posterior_draws,
+            diagnostics = diagnostics,
+            model_type = "STAN",
+            model_name = MODEL_NAME,
+            cluster = CLUSTER,
+            repno = REPNO
+        )
     }
-
-    # Fit model
-    fit <- rstan::stan(
-        model_code = code,
-        data = standata,
-        iter = model_specs$iter,
-        thin = model_specs$thin,
-        warmup = model_specs$warmup,
-        chains = model_specs$chains,
-        cores = model_specs$cores
-    )
-
-    # Package results
-    result <- list(
-        fit = fit,
-        model_type = "STAN",
-        model_name = MODEL_NAME,
-        cluster = CLUSTER,
-        repno = REPNO
-        # config = config
-    )
 } else if (MODEL_TYPE == "TMB") {
     # ---- TMB Model ----
     message("Running TMB model...")

@@ -21,7 +21,7 @@ if (HPC != "FALSE") {
         todisk = TRUE
     )
 } else {
-    root <- "~/clim_risk_phylosdm"
+    root <- "~/phyloSDM_MOL"
     message("Running locally")
 }
 

@@ -13,7 +13,7 @@ if (HPC != "FALSE") {
     root <- "/vast/palmer/pi/jetz/ss4224/clim_risk_phylosdm"
 } else {
     message("Running locally")
-    root <- "~/clim_risk_phylosdm"
+    root <- "~/phyloSDM_MOL"
 }
 
 if (interactive()) {

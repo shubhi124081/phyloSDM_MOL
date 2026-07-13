@@ -22,7 +22,9 @@ library(mvtnorm)
 # - Optional nugget on K_RR if you have species-specific st_devs draws.
 
 cp_LGCP_simple <- function(
-    stan_fit,
+    B_draws, # [S, J, K] posterior draws of species-environment coefficients
+    alpha_draws, # [S] posterior draws of GP amplitude
+    rho_draws, # [S] posterior draws of GP length scale
     D_phylo, # J x J distance matrix among species
     observed_index, # integer vector of observed-species indices (R)
     new_index, # single integer index of focal species (D)
@@ -32,11 +34,6 @@ cp_LGCP_simple <- function(
     jitter = 1e-6 # numeric jitter for numerical stability
     ) {
     stopifnot(length(new_index) == 1)
-
-    # --- Extract posterior draws ---
-    B_draws <- rstan::extract(stan_fit, pars = "B")$B # [S, J, K]
-    alpha_draws <- rstan::extract(stan_fit, pars = "alpha")$alpha
-    rho_draws <- rstan::extract(stan_fit, pars = "rho")$rho
 
     S <- dim(B_draws)[1]
     J <- dim(B_draws)[2]
@@ -103,7 +100,7 @@ if (HPC != "FALSE") {
     root <- "/vast/palmer/pi/jetz/ss4224/clim_risk_phylosdm"
     message("Running on HPC")
 } else {
-    root <- "~/clim_risk_phylosdm"
+    root <- "~/phyloSDM_MOL"
     message("Running locally")
 }
 
@@ -156,8 +153,20 @@ if (!file.exists(result_file)) {
     stop(sprintf("Result file not found: %s", result_file))
 }
 load(result_file) # loads 'result'
-stan_fit <- result$fit
 message(sprintf("Loaded result file: %s", basename(result_file)))
+
+# result$posterior (local/cmdstanr fits) is already extracted plain arrays;
+# result$fit (HPC/rstan fits) is a live stanfit object needing rstan::extract().
+if (!is.null(result$posterior)) {
+    B_draws <- result$posterior$B
+    alpha_draws <- result$posterior$alpha
+    rho_draws <- result$posterior$rho
+} else {
+    stan_fit <- result$fit
+    B_draws <- rstan::extract(stan_fit, pars = "B")$B
+    alpha_draws <- rstan::extract(stan_fit, pars = "alpha")$alpha
+    rho_draws <- rstan::extract(stan_fit, pars = "rho")$rho
+}
 
 # ---- Load model data file ----
 # Model data file naming: {EXP_ROOT}_{EXP_ID}_{CLUSTER}_{FSP}_rep_{REPNO}_model_data.Rdata
@@ -196,7 +205,7 @@ for (new_index in seq_len(length(sps))) {
     message(sprintf("  Predicting for species %d/%d: %s", new_index, length(sps), sp_name))
 
     # Call the function
-    B_cond_list[[new_index]] <- cp_LGCP_simple(stan_fit, D_phylo, observed_index, new_index, stan_data)
+    B_cond_list[[new_index]] <- cp_LGCP_simple(B_draws, alpha_draws, rho_draws, D_phylo, observed_index, new_index, stan_data)
 }
 names(B_cond_list) <- sps
 

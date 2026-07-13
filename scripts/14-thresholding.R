@@ -42,7 +42,7 @@ if (HPC != "FALSE") {
         message(sprintf("  Removed %d old temp files", length(old_temps)))
     }
 } else {
-    root <- "~/clim_risk_phylosdm"
+    root <- "~/phyloSDM_MOL"
     epath <- "~/env"
     message("Running locally")
 }

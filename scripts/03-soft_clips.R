@@ -16,7 +16,7 @@ if (HPC != "FALSE") {
   Sys.setenv(TMPDIR = "/vast/palmer/scratch/jetz/ss4224")
   terra::terraOptions(tempdir = "/vast/palmer/scratch/jetz/ss4224")
 } else {
-  root <- "~/clim_risk_phylosdm"
+  root <- "~/phyloSDM_MOL"
   epath <- "~/env"
   message("Running locally")
 }

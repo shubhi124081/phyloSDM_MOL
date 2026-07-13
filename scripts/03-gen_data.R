@@ -43,7 +43,7 @@ if (HPC != "FALSE") {
     terra::terraOptions(tempdir = "/vast/palmer/scratch/jetz/ss4224")
 } else {
     print("Running locally")
-    root <- "~/clim_risk_phylosdm"
+    root <- "~/phyloSDM_MOL"
     epath <- "~/env"
     species_csv_path <- file.path(root, "raw_data", DATASET, "species_csvs")
 }

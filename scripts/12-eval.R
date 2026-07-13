@@ -6,7 +6,7 @@ if (HPC != "FALSE") {
     root <- "/vast/palmer/pi/jetz/ss4224/clim_risk_phylosdm"
     message("Running on HPC")
 } else {
-    root <- "~/clim_risk_phylosdm"
+    root <- "~/phyloSDM_MOL"
     message("Running locally")
 }
 
@@ -207,8 +207,6 @@ if (!file.exists(result_file)) {
     stop(sprintf("Result file not found: %s", result_file))
 }
 load(result_file) # loads 'result'
-stan_fit <- result$fit
-config <- result$config
 message("Loaded model fit")
 
 # ---- Load conditional predictions ----
@@ -240,8 +238,15 @@ K <- test_data$K
 J <- test_data$J
 
 # ---- Extract posterior samples ----
-posterior_B <- rstan::extract(stan_fit, pars = "B")$B # (num_samples, J, K)
-posterior_sigma_f <- rstan::extract(stan_fit, pars = "sigma_f")$sigma_f # (num_samples)
+# result$posterior (local/cmdstanr fits) is already extracted plain arrays;
+# result$fit (HPC/rstan fits) is a live stanfit object needing rstan::extract().
+if (!is.null(result$posterior)) {
+    posterior_B <- result$posterior$B # (num_samples, J, K)
+    posterior_sigma_f <- result$posterior$sigma_f # (num_samples)
+} else {
+    posterior_B <- rstan::extract(result$fit, pars = "B")$B # (num_samples, J, K)
+    posterior_sigma_f <- rstan::extract(result$fit, pars = "sigma_f")$sigma_f # (num_samples)
+}
 
 # ---- Get unique species indices present in test data ----
 species_indices <- sort(unique(y_test_species))

@@ -4,7 +4,7 @@
 # Set up ----
 HPC <- Sys.getenv("HPC")
 if (HPC == "FALSE") {
-    root <- "~/clim_risk_phylosdm"
+    root <- "~/phyloSDM_MOL"
 } else {
     root <- "/vast/palmer/pi/jetz/ss4224/clim_risk_phylosdm"
 }

@@ -40,7 +40,7 @@ if (HPC != "FALSE") {
         message(sprintf("  Removed %d old temp files", length(old_temps)))
     }
 } else {
-    root <- "~/clim_risk_phylosdm"
+    root <- "~/phyloSDM_MOL"
     epath <- "~/env"
     message("Running locally")
 }
@@ -288,7 +288,6 @@ if (!file.exists(result_file)) {
     stop(sprintf("Result file not found: %s", result_file))
 }
 load(result_file) # loads 'result'
-stan_fit <- result$fit
 message("Loaded model fit")
 
 # ---- Load conditional predictions ----
@@ -318,8 +317,15 @@ if (file.exists(best_model_file)) {
 }
 
 # ---- Extract posterior samples ----
-posterior_B <- rstan::extract(stan_fit, pars = "B")$B # (S, J, K)
-posterior_sigma_f <- rstan::extract(stan_fit, pars = "sigma_f")$sigma_f # (S)
+# result$posterior (local/cmdstanr fits) is already extracted plain arrays;
+# result$fit (HPC/rstan fits) is a live stanfit object needing rstan::extract().
+if (!is.null(result$posterior)) {
+    posterior_B <- result$posterior$B # (S, J, K)
+    posterior_sigma_f <- result$posterior$sigma_f # (S)
+} else {
+    posterior_B <- rstan::extract(result$fit, pars = "B")$B # (S, J, K)
+    posterior_sigma_f <- rstan::extract(result$fit, pars = "sigma_f")$sigma_f # (S)
+}
 S <- dim(posterior_B)[1]
 message(sprintf(
     "Posterior: S=%d samples, J=%d species, K=%d predictors",
